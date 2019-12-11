@@ -2,9 +2,9 @@
 
 ### Authors
 
-Mia Chiquier
-Matthew Goodman
-John Wallison
+* Mia Chiquier
+* Matthew Goodman
+* John Wallison
 
 ## Acknowledgements
 
