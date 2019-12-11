@@ -1,0 +1,14 @@
+DensePoseNet:
+http://densepose.org/
+https://github.com/facebookresearch/DensePose/blob/master/notebooks/DensePose-RCNN-Visualize-Results.ipynb
+
+Start by training global pose normalization. What is the output format of DensePoseNet? Doesn't it return a mesh on a static image?
+
+List of things I think we'll need to do.
+    - Get DensePoseNet installed onto the server
+    - Looks like we'll be using DensePoseNet to generate IUV images for each frame? Where I seems to be segmentation
+        and UV is some sort of projection from the 2D image to a 3D surface
+    - Make sure the semantic label representation is what we expect (coordinates on a 2D grid right in x,y,depth channels?) 
+    - Train global
+    - Train local
+    - 
