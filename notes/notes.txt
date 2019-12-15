@@ -12,3 +12,164 @@ List of things I think we'll need to do.
     - Train global
     - Train local
     - 
+
+We need DensePose running on this server b/c DensePose requires nvidia-gpu for inference. Using the Docker caffe2/detectron image works well. Now I have that with the data mounted. Should probably preload model weights into data image so I don't need to re-download 600MB everytime we run a separate inference command
+
+
+# Not going to mount COCO b/c not training - only need evaluation and inference dependencies
+nvidia-docker run --rm -v $DENSEPOSE/DensePoseData:/denseposedata -it densepose:c2-cuda9-cudnn7-wtsdata <inference_or_training_command> 
+
+
+nvidia-docker run --rm -v $DENSEPOSE/DensePoseData:/denseposedata -it densepose:c2-cuda9-cudnn7-wtsdata python2 tools/infer_simple.py \
+    --cfg configs/DensePose_ResNet101_FPN_s1x-e2e.yaml \
+    --output-dir DensePoseData/infer_out/ \
+    --image-ext png \
+    --wts wts/DensePose_ResNet101_FPN_s1x-e2e.pkl \
+    DensePoseData/demo_data/demo_im.jpg
+
+DensePose_ResNet101_FPN_32x8d_s1x-e2e.pkl
+
+python2 tools/infer_simple.py \
+    --cfg configs/DensePose_ResNet101_FPN_32x8d_s1x-e2e.yaml \
+    --output-dir /dancedata/subject4/train/train_dense \
+    --image-ext png \
+    --wts wts/DensePose_ResNet101_FPN_32x8d_s1x-e2e.pkl \
+    /dancedata/subject4/train/train_img
+
+Start a docker container in detached mode:
+    nvidia-docker run -d -v $DENSEPOSE/DensePoseData:/denseposedata -it densepose:c2-cuda9-cudnn7-wtsdata2 bash
+
+Then you can exec in to actually run things:
+    nvidia-docker exec -it __container_hash__ bash
+
+gdown https://drive.google.com/uc?id={{ID}}
+
+Curl the EverybodyDanceNow dataset into docker container using gdown utility (pip install gdown)
+Run inference in the container on EverybodyDanceNow dataset
+Transfer images from inside the container to server (outside the container)
+scp download the images from the server to my local computer - need this shit out of there.
+Zip the images... and put on Google Drive?
+
+python2 tools/infer_simple.py \
+    --cfg configs/DensePose_ResNet101_FPN_32x8d_s1x-e2e.yaml \
+    --output-dir /dancedata/subject4/train/train_dense \
+    --image-ext png \
+    --wts wts/DensePose_ResNet101_FPN_32x8d_s1x-e2e.pkl \
+    /dancedata/subject4/train/train_img
+
+Copy the files out of the docker container into the server:
+docker cp e79e5e208dca:/dancedata/subject4/train/train_dense .
+
+SCP the files from server to local computer:
+scp mia@158.130.52.23:/home/mia/train_dense.tar.gz ~/Documents/GraduateSchool/Masters/CIS680/FinalProject/BellyNet/data/subject4/train/
+
+----------------------------------------------------------------------------------------------------
+
+Start a docker container in detached mode:
+    nvidia-docker run -d -v $DENSEPOSE/DensePoseData:/denseposedata -it densepose:c2-cuda9-cudnn7-wtsdata2 bash
+
+
+# Start on OpenPose container with BellyData and EBDN mounted
+
+docker run -d \
+  -it \
+  --name belly \
+  --net=host \
+  -e DISPLAY \
+  --runtime=nvidia \
+  --mount type=bind,source=/home/mia/BellyData,target=/BellyData \
+  --mount type=bind,source=/home/mia/EverybodyDanceNow-master,target=/ebdn \
+  exsidius/openpose:openpose
+
+# Need to generate keypoints for the frames of the target
+
+./build/examples/openpose/openpose.bin --image_dir ../BellyData/IMG_6371-frames/ --model_pose BODY_25 --write_keypoint ../BellyData/IMG_6371-keypoints/ --write_keypoint_format yml --display 0 --render_pose 0
+
+# Need to generate keypoints for the frames of the subject
+
+./build/examples/openpose/openpose.bin --image_dir ../BellyData/subject4/train/train_img --model_pose BODY_25 --write_keypoint ../BellyData/subject4/train/train_keypoints --write_keypoint_format yml --display 0 --render_pose 0 --face --hand
+
+# Doesn't run from within the openpose container b/c I'm missing CV2, numpy, etc. Python version is still Python 2... Issue is how to run Caroline's script, which requires openpose (and has it), but also needs a bunch of other Python stuff. Not sure at the moment. I do have keypoints for the target however. 
+
+python3 graph_posenorm.py \
+--target_keypoints /BellyData/subject4/train/train_keypoints  \
+--source_keypoints /BellyData/IMG_6371-keypoints \
+--target_shape 1080 1920 3 \
+--source_shape 1080 1920 3 \
+--source_frames /BellyData/IMG_6371-frames \
+--results /BellyData/IMG_6371-posenorm2 \
+--target_spread 20500 117700 \
+--source_spread 1 2700 \
+--calculate_scale_translation
+
+ls * | cat -n | while read i f; do mv "$f" `printf "frame%06d.${f#*.}" "$i"`; done
+
+ls *pose* | cat -n | while read i f; do mv "$f" `printf "frame%06d.${f#*.}" "$i"`; done
+ls *face* | cat -n | while read i f; do mv "$f" `printf "frame%06d.${f#*.}" "$i"`; done
+ls *left* | cat -n | while read i f; do mv "$f" `printf "frame%06d.${f#*.}" "$i"`; done
+ls *right* | cat -n | while read i f; do mv "$f" `printf "frame%06d.${f#*.}" "$i"`; done
+
+I edited the code on the server to have a try/except block when reading keypoints files, and to set the number of keypoints to look for as 75, not 69. 
+
+# Installing more missing Python dependencies in the docker container
+Pytorch (pip3 install pytorch)
+Dominate
+Torchvision
+
+# Now we go for global stage
+
+# test model at 512x256 resolution
+python3 test_fullts.py \
+--name /BellyData/pretrained \
+--dataroot /BellyData/IMG_6371-posenorm \
+--checkpoints_dir /BellyData/pretrained/ \
+--results_dir /BellyData/IMG_6371-gen \
+--loadSize 512 \
+--no_instance \
+--how_many 10000 \
+--label_nc 6
+
+# Now we go for the local stage
+
+python3 test_fullts.py \
+--name /BellyData/pretrained \
+--dataroot /BellyData/IMG_6371-posenorm \
+--checkpoints_dir /BellyData/pretrained/ \
+--results_dir /BellyData/IMG_6371-gen \
+--netG local \
+--ngf 32 \
+--resize_or_crop none \
+--no_instance \
+--how_many 10000 \
+--label_nc 6
+
+python3 test_fullts.py \
+--name /BellyData/pretrained \
+--dataroot /BellyData/IMG_6371-posenorm \
+--checkpoints_dir /BellyData/pretrained/ \
+--results_dir /BellyData/IMG_6371-gen \
+--face_generator \
+--faceGtype global \
+--netG local \
+--ngf 32 \
+--resize_or_crop none \
+--no_instance \
+--how_many 10000 \
+--label_nc 6
+
+
+## NONE OF THOSE WORKED, MAYBE we just try the face generator model b/c it might encapsulate all three? unclear.
+
+python3 test_fullts.py \
+--name pretrained \
+--dataroot /BellyData/IMG_6371-posenorm2 \
+--checkpoints_dir /BellyData/ \
+--results_dir /BellyData/IMG_6371-gen2 \
+--face_generator \
+--faceGtype global \
+--netG local \
+--ngf 32 \
+--resize_or_crop none \
+--no_instance \
+--how_many 10000 \
+--label_nc 6
