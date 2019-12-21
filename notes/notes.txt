@@ -102,6 +102,9 @@ python3 graph_posenorm.py \
 --source_spread 1 2700 \
 --calculate_scale_translation
 
+# This command is useful. For some reason, our frame counts are left-padded with zeroes to a width of 5 integers, but
+# Caroline's code specifically wants frame filenames padded to 6 integers. Running this in a directory with filenames of width 5 integers renames them all to be 6 integers in width.
+
 ls * | cat -n | while read i f; do mv "$f" `printf "frame%06d.${f#*.}" "$i"`; done
 
 ls *pose* | cat -n | while read i f; do mv "$f" `printf "frame%06d.${f#*.}" "$i"`; done
@@ -173,3 +176,62 @@ python3 test_fullts.py \
 --no_instance \
 --how_many 10000 \
 --label_nc 6
+
+# Trying this whole thing again with a new video - IMG_7713
+
+# Generate keypoints for the video frames
+
+./build/examples/openpose/openpose.bin --image_dir ../BellyData/IMG_7713-frames/ --model_pose BODY_25 --write_keypoint ../BellyData/IMG_7713-keypoints/ --write_keypoint_format yml --display 0 --render_pose 0 --face --hand
+
+# Normalize target pose to subject
+
+python3 graph_posenorm.py \
+--target_keypoints /BellyData/subject4/train/train_keypoints  \
+--source_keypoints /BellyData/IMG_7713-keypoints \
+--target_shape 1080 1920 3 \
+--source_shape 1080 1920 3 \
+--source_frames /BellyData/IMG_7713-frames \
+--results /BellyData/IMG_7713-posenorm \
+--target_spread 20500 117700 \
+--source_spread 1 7295 \
+--calculate_scale_translation
+
+python3 test_fullts.py \
+--name pretrained \
+--dataroot /BellyData/IMG_7713-posenorm \
+--checkpoints_dir /BellyData/ \
+--results_dir /BellyData/IMG_7713-gen \
+--face_generator \
+--faceGtype global \
+--netG local \
+--ngf 32 \
+--resize_or_crop none \
+--no_instance \
+--how_many 10000 \
+--label_nc 6
+
+# On the server make tar files out of everything
+
+cd /BellyData ; tar -czvf posenorm_7713.tar.gz IMG_7713-posenorm ; tar -czvf posegen_7713.tar.gz IMG_7713-gen
+
+# Locally, let's download the tar files
+
+scp -r mia@158.130.52.23:/home/mia/BellyData/posenorm_7713.tar.gz . ; scp -r mia@158.130.52.23:/home/mia/BellyData/posegen_7713.tar.gz .
+
+tar -xvf posenorm_7713.tar.gz ; tar -xvf posegen_7713.tar.gz
+
+
+# TRYING BODY POSE 23
+
+./build/examples/openpose/openpose.bin --image_dir ../BellyData/IMG_6371-frames/ --model_pose BODY_25 --write_keypoint ../BellyData/IMG_6371-keypoints-23/ --write_keypoint_format yml --display 0 --render_pose 0 --face --hand
+
+python3 graph_posenorm.py \
+--target_keypoints /BellyData/subject4/train/train_keypoints  \
+--source_keypoints /BellyData/IMG_6371-keypoints \
+--target_shape 1080 1920 3 \
+--source_shape 1080 1920 3 \
+--source_frames /BellyData/IMG_6371-frames \
+--results /BellyData/IMG_6371-posenorm23 \
+--target_spread 20500 117700 \
+--source_spread 1 2700 \
+--calculate_scale_translation
