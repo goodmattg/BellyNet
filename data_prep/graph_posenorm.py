@@ -172,18 +172,26 @@ def get_keypoints_stats(mypath, myshape, spread, startname="frame", stophere=200
                 print("EMPTY stats", key_name, len(posepts))
                 continue
             else:
+                # get_pose_stats returns None if unable to compute stats
                 check_me = get_pose_stats(posepts)
                 if check_me:
                     height, min_tip_toe, max_tip_toe = check_me
+                    # Track the maximum height seen in any frame
                     maxheight = max(maxheight, height)
+                    # Track every height we've seen
                     heights += [height]
+                    # Track the min ankle position
                     mintoe = min(mintoe, min_tip_toe)
+                    # Track the max ankle position
                     maxtoe = max(maxtoe, max_tip_toe)
+                    # TODO according to naming this is an outright bug...
                     avemintoe += max_tip_toe
+                    # Keep track of the smallest max-height
                     minmaxtoe = min(max_tip_toe, minmaxtoe)
                     getmediantiptoe += [max_tip_toe]
                     count += 1
 
+                    # Track mapping from max ankle to height
                     if max_tip_toe not in tiptoe_to_height:
                         tiptoe_to_height[max_tip_toe] = [height]
                     else:
@@ -197,7 +205,9 @@ def get_keypoints_stats(mypath, myshape, spread, startname="frame", stophere=200
         if count >= spread[1] - spread[0]:
             ok = False
 
+    # NOTE: THIS IS ACTUALLY THE AVERAGE MAX ANKLE HEIGHT
     avemintoe = avemintoe / float(count)
+    # Median of the max ankle positions
     mediantiptoe = np.median(getmediantiptoe)
 
     return (
