@@ -22,14 +22,6 @@ def visualize_keypoints(keypoints, canvas):
     # Create the rendering of the keypoints file
     rendered = renderpose25(keypoints, canvas)
     return rendered
-    # Assumes your input is a 16:9 aspect ratio
-    # image = cv.resize(rendered, (640, 360))
-
-    # cv.imshow("pose", image)
-    # cv.waitKey(0)
-
-    # Either (1)  show the rendered keypoints along
-    # (2) Show the rendered keypoints splitscreen
 
 
 def build_compare_figure(img_1, img_2):
