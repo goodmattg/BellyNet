@@ -674,10 +674,17 @@ def aveface(posepts):
 	else:
 		return posepts[(3*lear):(3*lear)+2]
 
+
 def get_pose_stats(posepts):
     """
     Returns stats for variable length pose keypoints in format:
     [x, y, c] where x,y is the position of the body part and c is the confidence
+
+    Outputs:
+        height:         float64 (height from mean ankle position to nose)
+        min_tip_toe     float64 (minimum ankle y-position)
+        max_tip_toe     float64 (maximum ankle y-position)
+    
     """
 	nose = 0
 	rear = 0
@@ -748,7 +755,7 @@ def get_pose_stats(posepts):
         # Height is the euclidean distance from foot average (ankle average) to nose
 		height = sqrt((headx - avefootx)**2 + (heady - avefooty)**2)
 
-        # min foot and max foot
+        # min foot and max foot y position
 		min_tip_toe = min(posepts[(3*rfoot) + 1], posepts[(3*lfoot) + 1])
 		max_tip_toe = max(posepts[(3*rfoot) + 1], posepts[(3*lfoot) + 1])
 

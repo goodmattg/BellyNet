@@ -123,7 +123,19 @@ parser.add_argument(
 
 
 def get_keypoints_stats(mypath, myshape, spread, startname="frame", stophere=20000):
+    """
+    Returns aggregate statistics for a set of keypoints
 
+    Outputs:
+        maxheight           deprecated
+        mintoe,             deprecated
+        maxtoe,             float64         (argmaximum ankle y-position across all poses)   
+        avemintoe,          deprecated
+        minmaxtoe,          deprecated
+        mediantiptoe,       float64         (median of all maximum ankle y-positions across all poses)   
+        getmediantiptoe,    list[float64]   (list of all maximum ankle y-positions across all poses)
+        tiptoe_to_height,   dict()          (mapping from max ankle to height)
+    """
     filenames = os.listdir(mypath)
 
     maxheight = 0
@@ -165,8 +177,8 @@ def get_keypoints_stats(mypath, myshape, spread, startname="frame", stophere=200
 
                     sys.exit(0)
 
-            if len(posepts) == 75:
-                posepts = map_25_to_23(posepts)
+            # if len(posepts) == 75:
+            #     posepts = map_25_to_23(posepts)
 
             if len(posepts) != poselen:
                 print("EMPTY stats", key_name, len(posepts))
@@ -225,17 +237,17 @@ def get_keypoints_stats(mypath, myshape, spread, startname="frame", stophere=200
 def get_minmax_scales(tiptoe_to_height0, tiptoe_to_height1, translation, frac):
     sorted_tiptoes0 = list(tiptoe_to_height0.keys()).sort()
 
-    m_maxtoe, m_horizon = translation[0]
-    t_maxtoe, t_horizon = translation[1]
+    t_maxtoe, t_horizon = translation[0]
+    s_maxtoe, s_horizon = translation[1]
 
-    range0 = (m_maxtoe - m_horizon) * frac
-    range1 = (t_maxtoe - t_horizon) * frac
+    range0 = (t_maxtoe - t_horizon) * frac
+    range1 = (s_maxtoe - s_horizon) * frac
 
     toe_keys0 = [
-        x for x in list(tiptoe_to_height0.keys()) if abs(x - m_maxtoe) <= range0
+        x for x in list(tiptoe_to_height0.keys()) if abs(x - t_maxtoe) <= range0
     ]
     horizon_keys0 = [
-        x for x in list(tiptoe_to_height0.keys()) if abs(x - m_horizon) <= range0
+        x for x in list(tiptoe_to_height0.keys()) if abs(x - t_horizon) <= range0
     ]
 
     max_heightclose0 = 0
@@ -251,10 +263,10 @@ def get_minmax_scales(tiptoe_to_height0, tiptoe_to_height1, translation, frac):
             max_heightfar0 = cur_h
 
     toe_keys1 = [
-        x for x in list(tiptoe_to_height1.keys()) if abs(x - t_maxtoe) <= range1
+        x for x in list(tiptoe_to_height1.keys()) if abs(x - s_maxtoe) <= range1
     ]
     horizon_keys1 = [
-        x for x in list(tiptoe_to_height1.keys()) if abs(x - t_horizon) <= range1
+        x for x in list(tiptoe_to_height1.keys()) if abs(x - s_horizon) <= range1
     ]
 
     max_heightclose1 = 0
@@ -301,11 +313,11 @@ def apply_transformation(keypoints, translation, scale):
 
 
 def calculate_translation(t_coord, translation, scaleyy):
-    m_maxtoe, m_horizon = translation[0]
-    t_maxtoe, t_horizon = translation[1]
+    t_maxtoe, t_horizon = translation[0]
+    s_maxtoe, s_horizon = translation[1]
 
-    percentage = (t_coord - t_horizon) / float(t_maxtoe - t_horizon)
-    m_coord = m_horizon + percentage * float(m_maxtoe - m_horizon)
+    percentage = (t_coord - s_horizon) / float(s_maxtoe - s_horizon)
+    m_coord = t_horizon + percentage * float(t_maxtoe - t_horizon)
 
     scale_interp = scaleyy[1] + percentage * float(scaleyy[0] - scaleyy[1])
 
@@ -318,15 +330,15 @@ def transform_interp(
     translation,
     myshape,
     savedir,
-    spread_m,
     spread_t,
+    spread_s,
     dir_facepts="",
     framesdir="",
     numkeypoints=0,
     startname="frame",
 ):
-    start = spread_t[0]
-    end = spread_t[1]
+    start = spread_s[0]
+    end = spread_s[1]
     numberframesmade = 0
 
     startx = 0
@@ -342,12 +354,12 @@ def transform_interp(
     tary = 512
     tarx = 1024
 
-    neck = 0
-    headNose = 18
-    rEye = 19
-    rEar = 20
-    lEye = 21
-    lEar = 22
+    # neck = 0
+    # headNose = 18
+    # rEye = 19
+    # rEar = 20
+    # lEye = 21
+    # lEar = 22
 
     w_size = 7
     pose_window = []
@@ -367,7 +379,7 @@ def transform_interp(
     print(numkeypoints)
     if numkeypoints == 0:
         my_neighbors, my_masks, mygraphs, posefaces = readinfacepts(
-            dir_facepts, spread_m, numcompare=100000
+            dir_facepts, spread_t, numcompare=100000
         )
         print("computed neighbors")
 
@@ -542,10 +554,11 @@ shape2 = tuple(opt.source_shape)
 target_keypoints = opt.target_keypoints
 source_keypoints = opt.source_keypoints
 framesdir = opt.source_frames
-spread_m = tuple(opt.target_spread)
-spread_t = tuple(opt.source_spread)
 
-if (len(spread_m) != 2) or (len(spread_t) != 2):
+spread_t = tuple(opt.target_spread)
+spread_s = tuple(opt.source_spread)
+
+if (len(spread_t) != 2) or (len(spread_s) != 2):
     print("spread must include start and end range indices")
     sys.exit(0)
 
@@ -565,8 +578,8 @@ if not os.path.exists(savedir + "/test_img"):
 if not os.path.exists(savedir + "/test_facetexts128"):
     os.makedirs(savedir + "/test_facetexts128")
 
-m_mid_frac = opt.target_median_frac
-t_mid_frac = opt.source_median_frac
+t_mid_frac = opt.target_median_frac
+s_mid_frac = opt.source_median_frac
 
 calculate_scale_and_translation = opt.calculate_scale_translation
 
@@ -575,32 +588,25 @@ translation = 0
 """ Calculate Scale and Translation Here """
 if calculate_scale_and_translation:
     # maxheight, mintoe, maxtoe, avemintoe, maxmintoe
-    t_height, t_mintoe, t_maxtoe, t_avemintoe, t_maxmintoe, t_median, t_tiptoes, t_tiptoe_to_height = get_keypoints_stats(
-        source_keypoints, shape2, spread_t, startname=startname
+    _, _, s_maxtoe, _, _, s_median, s_tiptoes, s_tiptoe_to_height = get_keypoints_stats(
+        source_keypoints, shape2, spread_s, startname=startname
     )
 
-    m_height, m_mintoe, m_maxtoe, m_avemintoe, m_maxmintoe, m_median, m_tiptoes, m_tiptoe_to_height = get_keypoints_stats(
-        target_keypoints, shape1, spread_m, startname=startname, stophere=5000
+    _, _, t_maxtoe, _, _, t_median, t_tiptoes, t_tiptoe_to_height = get_keypoints_stats(
+        target_keypoints, shape1, spread_t, startname=startname, stophere=5000
     )
 
-    m_tiptoefrommid = m_maxtoe - m_median
+    # Difference between argmax ankle position (y) and median of max ankle positions
     t_tiptoefrommid = t_maxtoe - t_median
+    s_tiptoefrommid = s_maxtoe - s_median
 
-    print(m_median)
     print(t_median)
+    print(s_median)
 
-    m_distancetomid = -1 * np.array(m_tiptoes)  # median - tiptoes
-    m_distancetomid = m_distancetomid + m_median
-    m_inds = np.where(
-        (m_distancetomid > 0) & (m_distancetomid < m_mid_frac * m_tiptoefrommid)
-    )  # want the biggest number > 0 but also < tiptoefrommid
-    m_abovemedian = m_distancetomid[m_inds]
-    m_biggestind = np.argmax(m_abovemedian)
-    m_horizon = (m_abovemedian[m_biggestind] - m_median) * -1
-    print(m_horizon)
-
-    t_distancetomid = -1 * np.array(t_tiptoes)  # median - tiptoes
+    #    median - tiptoes
+    t_distancetomid = -1 * np.array(t_tiptoes)
     t_distancetomid = t_distancetomid + t_median
+
     t_inds = np.where(
         (t_distancetomid > 0) & (t_distancetomid < t_mid_frac * t_tiptoefrommid)
     )  # want the biggest number > 0 but also < tiptoefrommid
@@ -609,18 +615,28 @@ if calculate_scale_and_translation:
     t_horizon = (t_abovemedian[t_biggestind] - t_median) * -1
     print(t_horizon)
 
+    s_distancetomid = -1 * np.array(s_tiptoes)  # median - tiptoes
+    s_distancetomid = s_distancetomid + s_median
+    s_inds = np.where(
+        (s_distancetomid > 0) & (s_distancetomid < s_mid_frac * s_tiptoefrommid)
+    )  # want the biggest number > 0 but also < tiptoefrommid
+    s_abovemedian = s_distancetomid[s_inds]
+    s_biggestind = np.argmax(s_abovemedian)
+    s_horizon = (s_abovemedian[s_biggestind] - s_median) * -1
+    print(s_horizon)
+
     scale = 1
-    translation = [(m_maxtoe, m_horizon), (t_maxtoe, t_horizon)]
+    translation = [(t_maxtoe, t_horizon), (s_maxtoe, s_horizon)]
 
-    if t_maxtoe - t_horizon < m_maxtoe - m_horizon:
+    if s_maxtoe - s_horizon < t_maxtoe - t_horizon:
         print(" small range ")
-        m_middle = 0.5 * (m_maxtoe + m_horizon)
-        t_half = 0.5 * (t_maxtoe - t_horizon)
-        new_m_horizon = m_middle - t_half
-        new_m_maxtoe = m_middle + t_half
-        translation = [(new_m_maxtoe, new_m_horizon), (t_maxtoe, t_horizon)]
+        t_middle = 0.5 * (t_maxtoe + t_horizon)
+        s_half = 0.5 * (s_maxtoe - s_horizon)
+        new_t_horizon = t_middle - s_half
+        new_t_maxtoe = t_middle + s_half
+        translation = [(new_t_maxtoe, new_t_horizon), (s_maxtoe, s_horizon)]
 
-    scale = get_minmax_scales(m_tiptoe_to_height, t_tiptoe_to_height, translation, 0.05)
+    scale = get_minmax_scales(t_tiptoe_to_height, s_tiptoe_to_height, translation, 0.05)
 
     """ SAVE FACE TEXTS HERE """
     myfile = savedir + "/norm_params.txt"
@@ -667,8 +683,8 @@ transform_interp(
     translation,
     shape1,
     savedir,
-    spread_m,
     spread_t,
+    spread_s,
     "",
     framesdir,
     numkeypoints,
