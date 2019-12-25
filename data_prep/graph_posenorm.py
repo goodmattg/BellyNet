@@ -2,38 +2,29 @@ import argparse
 import cv2 as cv
 import numpy as np
 
-# import scipy
 import math
 import time
 import copy
 import matplotlib
 import sys
-
-#%matplotlib inline
-import pylab as plt
 import json
-from PIL import Image
-from shutil import copyfile
-
-# from skimage import img_as_float
-from functools import reduce
-from render import *
-
-# from scipy.misc import imresize
-# from scipy.misc import imsave
 import os
 import shutil
+
+#%matplotlib inline
+
+from PIL import Image
+from shutil import copyfile
+from render import *
 
 disp = False
 
 start = 822
 end = 129502
 step = 4
-# numframesmade = 0
+
 n = start
 SIZE = 512
-
-# f_threshold = 0.2
 poselen = 75
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -114,7 +105,7 @@ parser.add_argument(
 parser.add_argument(
     "--calculate_scale_translation",
     action="store_true",
-    help="use this flag to calcuate the translation and scale from scratch. Else, try to load them from a saved file.",
+    help="use this flag to calculate the translation and scale from scratch. Else, try to load them from a saved file.",
 )
 parser.add_argument(
     "--format",
@@ -306,29 +297,39 @@ def get_minmax_scales(tiptoe_to_height0, tiptoe_to_height1, translation, frac):
 
 
 def apply_transformation(keypoints, translation, scale):
+    """Applies normalization transformation (scale + transform) to keypoints"""
     i = 0
     while i < len(keypoints):
+        # Modify the x-coordinate, then the y-coordinate. Skip confidence value.
         keypoints[i] = (keypoints[i] * scale) + translation[0]
         keypoints[i + 1] = (keypoints[i + 1] * scale) + translation[1]
         i += 3
     return keypoints
 
 
-def calculate_translation(t_coord, translation, scaleyy):
+def calculate_translation(t_coord, translation, scale_ratios):
+    """
+    Inputs:
+        t_coord: target coordinate (x,y)
+        translation: [[t_close, t_far], [s_close, s_far]]
+        scale_ratios: [scale_ratio_close, scale_ratio_far]
+    """
     t_maxtoe, t_horizon = translation[0]
     s_maxtoe, s_horizon = translation[1]
 
     percentage = (t_coord - s_horizon) / float(s_maxtoe - s_horizon)
     m_coord = t_horizon + percentage * float(t_maxtoe - t_horizon)
 
-    scale_interp = scaleyy[1] + percentage * float(scaleyy[0] - scaleyy[1])
+    scale_interp = scale_ratios[1] + percentage * float(
+        scale_ratios[0] - scale_ratios[1]
+    )
 
     return m_coord - t_coord, scale_interp
 
 
 def transform_interp(
     mypath,
-    scaleyy,
+    scale_ratios,
     translation,
     myshape,
     savedir,
@@ -442,7 +443,9 @@ def transform_interp(
                 print(key_name, "my pose is not so good")
             else:
                 height, min_tip_toe, max_tip_toe = check_me
-                diff, scale = calculate_translation(max_tip_toe, translation, scaleyy)
+                diff, scale = calculate_translation(
+                    max_tip_toe, translation, scale_ratios
+                )
                 lastdiff = diff
                 lastscale = scale
                 # print diff, scale
