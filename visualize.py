@@ -30,17 +30,22 @@ def build_compare_figure(img_1, img_2):
 
 if __name__ == "__main__":
 
+    render_shape = opt.render_shape
+
     # Read in the keypoints file
     keypoints = readkeypointsfile(opt.keypoints)
-    canvas = 255 * np.ones(opt.render_shape, dtype="uint8")
+
+    if opt.compare_image:
+        compare_img = cv.imread(opt.compare_image)
+        render_shape = compare_img.shape
+
+    canvas = 255 * np.ones(render_shape, dtype="uint8")
 
     # Render the keypoints to an image
     rendered = visualize_keypoints(keypoints, canvas)
 
     if opt.compare_image:
-        compare_img = cv.imread(opt.compare_image)
         full_fig = build_compare_figure(rendered, compare_img)
-
         display(full_fig, compare=True)
     else:
         display(rendered, compare=False)
