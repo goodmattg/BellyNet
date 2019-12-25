@@ -642,37 +642,36 @@ def renderhand(handpts, canvas, threshold=0.05):
     return canvas
 
 
-
 def aveface(posepts):
 
-	nose = 0
-	rear = 16
-	lear = 17
+    nose = 0
+    rear = 16
+    lear = 17
 
-	if len(posepts) == 69:
-		nose = 18
-		rear = 20
-		lear = 22
-	elif len(posepts) == 75:
-		nose = 0
-		rear = 17
-		lear = 18
+    if len(posepts) == 69:
+        nose = 18
+        rear = 20
+        lear = 22
+    elif len(posepts) == 75:
+        nose = 0
+        rear = 17
+        lear = 18
 
-	con0 = posepts[(3*nose)+2] > 0
-	con10 = posepts[(3*rear)+2] > 0
-	con13 = posepts[(3*lear)+2] > 0
+    con0 = posepts[(3 * nose) + 2] > 0
+    con10 = posepts[(3 * rear) + 2] > 0
+    con13 = posepts[(3 * lear) + 2] > 0
 
-	if con0:
-		return posepts[(3*nose):(3*nose)+2]
+    if con0:
+        return posepts[(3 * nose) : (3 * nose) + 2]
 
-	if con10 and con13:
-		avex = 0.5*(posepts[(3*rear)] + posepts[(3*lear)])
-		avey = 0.5*(posepts[(3*rear)+1] + posepts[(3*lear)+1])
-		return [avex, avey]
-	elif con10:
-		return posepts[(3*rear):(3*rear)+2]
-	else:
-		return posepts[(3*lear):(3*lear)+2]
+    if con10 and con13:
+        avex = 0.5 * (posepts[(3 * rear)] + posepts[(3 * lear)])
+        avey = 0.5 * (posepts[(3 * rear) + 1] + posepts[(3 * lear) + 1])
+        return [avex, avey]
+    elif con10:
+        return posepts[(3 * rear) : (3 * rear) + 2]
+    else:
+        return posepts[(3 * lear) : (3 * lear) + 2]
 
 
 def get_pose_stats(posepts):
@@ -686,158 +685,163 @@ def get_pose_stats(posepts):
         max_tip_toe     float64 (maximum ankle y-position)
     
     """
-	nose = 0
-	rear = 0
-	lear = 0
+    nose = 0
+    rear = 0
+    lear = 0
 
-	rfoot = 0
-	lfoot = 0
+    rfoot = 0
+    lfoot = 0
 
-	if len(posepts) == 54: ## COCO:
-		nose = 0
-		rear = 16
-		lear = 17
+    if len(posepts) == 54:  ## COCO:
+        nose = 0
+        rear = 16
+        lear = 17
 
-		rfoot = 10
-		lfoot = 13
-	elif len(posepts) == 69: ## POSE_BODY_23:
-		nose = 18
-		rear = 20
-		lear = 22
+        rfoot = 10
+        lfoot = 13
+    elif len(posepts) == 69:  ## POSE_BODY_23:
+        nose = 18
+        rear = 20
+        lear = 22
 
-		rfoot = 10
-		lfoot = 15
+        rfoot = 10
+        lfoot = 15
 
-	elif len(posepts) == 75: ## POSE_BODY_25
-		nose = 0
-		rear = 17
-		lear = 18
+    elif len(posepts) == 75:  ## POSE_BODY_25
+        nose = 0
+        rear = 17
+        lear = 18
 
-		rfoot = 11 # RAnkle
-		lfoot = 14 # LAnkle
-	else:
-		print("pose length of %d format is not supported" % len(posepts))
-		import sys
-		sys.exit(1)
-		
-	min_tip_toe = 0
-	max_tip_toe = 0
+        rfoot = 11  # RAnkle
+        lfoot = 14  # LAnkle
+    else:
+        print("pose length of %d format is not supported" % len(posepts))
+        import sys
+
+        sys.exit(1)
+
+    min_tip_toe = 0
+    max_tip_toe = 0
 
     # CHECK that nose confidence is greater than 0
-	con0 = posepts[(3*nose)+2] > 0
+    con0 = posepts[(3 * nose) + 2] > 0
     # CHECK that rfoot (rankle) confidence is greater than 0
-	con10 = posepts[(3*rfoot)+2] > 0
+    con10 = posepts[(3 * rfoot) + 2] > 0
     # CHECK that lear confidence is greater than 0
-	con13 = posepts[(3*lear)+2] > 0
+    con13 = posepts[(3 * lear) + 2] > 0
 
     # Head <--> nose. Get head x, y
-	headx = posepts[(3*nose)]
-	heady = posepts[(3*nose)+1]
+    headx = posepts[(3 * nose)]
+    heady = posepts[(3 * nose) + 1]
 
     # If zero nose confidence, estimate head position using left and right ear
-	if not (con0):
-		con16 = posepts[(3*rear) + 2] > 0
-		con17 = posepts[(3*lear) + 2] > 0
-		con0 = con16 and con17
+    if not (con0):
+        con16 = posepts[(3 * rear) + 2] > 0
+        con17 = posepts[(3 * lear) + 2] > 0
+        con0 = con16 and con17
         # FALLBACK IS THAT NOSE IS HALFWAY BETWEEN EARS
-		headx = 0.5*(posepts[(3*rear)]+posepts[(3*lear)])
-		heady = 0.5*(posepts[(3*rear)+1]+posepts[(3*lear)+1])
+        headx = 0.5 * (posepts[(3 * rear)] + posepts[(3 * lear)])
+        heady = 0.5 * (posepts[(3 * rear) + 1] + posepts[(3 * lear) + 1])
 
     # Require nose (or estimate), right ankle/foot, and left ear for stats
-	if (con0 and con10) and con13:
-		# headx = posepts[0]
-		# heady = posepts[0+1]
+    if (con0 and con10) and con13:
+        # headx = posepts[0]
+        # heady = posepts[0+1]
 
         # Average feet position (x,y)
-		avefootx = (posepts[(3*rfoot)] + posepts[(3*lfoot)]) * 0.5
-		avefooty = (posepts[(3*rfoot) + 1] + posepts[(3*lfoot) + 1]) * 0.5
+        avefootx = (posepts[(3 * rfoot)] + posepts[(3 * lfoot)]) * 0.5
+        avefooty = (posepts[(3 * rfoot) + 1] + posepts[(3 * lfoot) + 1]) * 0.5
 
         # Height is the euclidean distance from foot average (ankle average) to nose
-		height = sqrt((headx - avefootx)**2 + (heady - avefooty)**2)
+        height = sqrt((headx - avefootx) ** 2 + (heady - avefooty) ** 2)
 
         # min foot and max foot y position
-		min_tip_toe = min(posepts[(3*rfoot) + 1], posepts[(3*lfoot) + 1])
-		max_tip_toe = max(posepts[(3*rfoot) + 1], posepts[(3*lfoot) + 1])
+        min_tip_toe = min(posepts[(3 * rfoot) + 1], posepts[(3 * lfoot) + 1])
+        max_tip_toe = max(posepts[(3 * rfoot) + 1], posepts[(3 * lfoot) + 1])
 
-		return height, min_tip_toe, max_tip_toe
-	else:
-		return None
+        return height, min_tip_toe, max_tip_toe
+    else:
+        return None
 
 
 def get_min_point(posepts):
 
-	ypoints = posepts[1::3]
+    ypoints = posepts[1::3]
 
-	rfoot = 10
-	lfoot = 15
+    rfoot = 10
+    lfoot = 15
 
-	# index = np.argmax(ypoints)
-	index=lfoot
+    # index = np.argmax(ypoints)
+    index = lfoot
 
-	if posepts[(3*rfoot) + 1] > posepts[(3*lfoot) + 1]:
-		index = rfoot
-	return (posepts[0::3][index], posepts[1::3][index])
+    if posepts[(3 * rfoot) + 1] > posepts[(3 * lfoot) + 1]:
+        index = rfoot
+    return (posepts[0::3][index], posepts[1::3][index])
 
-def getmedians(keypoint_list, threshold = 0.05):
 
-	numkeypoints = len(keypoint_list[0])
-	num_frames = len(keypoint_list)
+def getmedians(keypoint_list, threshold=0.05):
 
-	my_median = np.zeros(numkeypoints)
+    numkeypoints = len(keypoint_list[0])
+    num_frames = len(keypoint_list)
 
-	j = 0
-	while j < numkeypoints:
-		mypoints = []
-		for frame in range(num_frames):
-			my_keypoints = keypoint_list[frame]
-			mypoints += [(my_keypoints[j], my_keypoints[j+1], my_keypoints[j+2])]
-		yo = np.array(mypoints)
-		yo = np.median(yo, axis=0)
-		my_median[j] = yo[0]
-		my_median[j+1] = yo[1]
-		my_median[j+2] = yo[2]
-		j += 3
-	# print len(my_median)
-	# print my_median[-1]
-	return np.array(my_median)
+    my_median = np.zeros(numkeypoints)
 
-def getmedians_adapt(keypoint_list, threshold = 0.0, printme=False):
+    j = 0
+    while j < numkeypoints:
+        mypoints = []
+        for frame in range(num_frames):
+            my_keypoints = keypoint_list[frame]
+            mypoints += [(my_keypoints[j], my_keypoints[j + 1], my_keypoints[j + 2])]
+        yo = np.array(mypoints)
+        yo = np.median(yo, axis=0)
+        my_median[j] = yo[0]
+        my_median[j + 1] = yo[1]
+        my_median[j + 2] = yo[2]
+        j += 3
+    # print len(my_median)
+    # print my_median[-1]
+    return np.array(my_median)
 
-	numkeypoints = len(keypoint_list[0])
-	num_frames = len(keypoint_list)
 
-	my_median = np.zeros(numkeypoints)
+def getmedians_adapt(keypoint_list, threshold=0.0, printme=False):
 
-	j = 0
-	while j < numkeypoints:
-		mypoints = []
-		confidentpoints = []
-		for frame in range(num_frames):
-			my_keypoints = keypoint_list[frame]
-			confidence = my_keypoints[j+2]
-			if confidence > threshold:
-				confidentpoints += [(my_keypoints[j], my_keypoints[j+1], my_keypoints[j+2])]
-			mypoints += [(my_keypoints[j], my_keypoints[j+1], my_keypoints[j+2])]
-		yo = np.array(mypoints)
-		yo = np.median(yo, axis=0)
-		if yo[2] > 0:
-			# if printme:
-			# 	print yo[2], confidentpoints
-			if len(confidentpoints) != 0:
-				conf_yo = np.array(confidentpoints)
-				yo = np.median(conf_yo, axis=0)
-			else:
-				yo = np.array([0.0,0.0,0.0])
-			if printme:
-				print(yo, j//3)
-		# else:
-		# 	print "hoobooo"
-		my_median[j] = yo[0]
-		my_median[j+1] = yo[1]
-		my_median[j+2] = yo[2]
-		j += 3
-	# print len(my_median)
-	# print my_median[-1]
-	if printme:
-		print(my_median)
-	return np.array(my_median)
+    numkeypoints = len(keypoint_list[0])
+    num_frames = len(keypoint_list)
+
+    my_median = np.zeros(numkeypoints)
+
+    j = 0
+    while j < numkeypoints:
+        mypoints = []
+        confidentpoints = []
+        for frame in range(num_frames):
+            my_keypoints = keypoint_list[frame]
+            confidence = my_keypoints[j + 2]
+            if confidence > threshold:
+                confidentpoints += [
+                    (my_keypoints[j], my_keypoints[j + 1], my_keypoints[j + 2])
+                ]
+            mypoints += [(my_keypoints[j], my_keypoints[j + 1], my_keypoints[j + 2])]
+        yo = np.array(mypoints)
+        yo = np.median(yo, axis=0)
+        if yo[2] > 0:
+            # if printme:
+            # 	print yo[2], confidentpoints
+            if len(confidentpoints) != 0:
+                conf_yo = np.array(confidentpoints)
+                yo = np.median(conf_yo, axis=0)
+            else:
+                yo = np.array([0.0, 0.0, 0.0])
+            if printme:
+                print(yo, j // 3)
+        # else:
+        # 	print "hoobooo"
+        my_median[j] = yo[0]
+        my_median[j + 1] = yo[1]
+        my_median[j + 2] = yo[2]
+        j += 3
+    # print len(my_median)
+    # print my_median[-1]
+    if printme:
+        print(my_median)
+    return np.array(my_median)

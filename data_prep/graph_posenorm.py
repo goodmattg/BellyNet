@@ -1,7 +1,8 @@
 import argparse
 import cv2 as cv
 import numpy as np
-import scipy
+
+# import scipy
 import math
 import time
 import copy
@@ -16,9 +17,10 @@ from shutil import copyfile
 
 # from skimage import img_as_float
 from functools import reduce
-from renderopenpose import *
-from scipy.misc import imresize
-from scipy.misc import imsave
+from render import *
+
+# from scipy.misc import imresize
+# from scipy.misc import imsave
 import os
 import shutil
 
@@ -27,12 +29,12 @@ disp = False
 start = 822
 end = 129502
 step = 4
-numframesmade = 0
+# numframesmade = 0
 n = start
 SIZE = 512
 
-f_threshold = 0.2
-poselen = 69
+# f_threshold = 0.2
+poselen = 75
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 ##### pose normalization from source ----> target. Then apply pose ----> target mapping to complete transfer.

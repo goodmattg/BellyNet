@@ -235,3 +235,48 @@ python3 graph_posenorm.py \
 --target_spread 20500 117700 \
 --source_spread 1 2700 \
 --calculate_scale_translation
+
+# Attempts to fix pose normalization
+
+python3 data_prep/graph_posenorm.py \
+--target_keypoints data/subject4/train/train_keypoints  \
+--source_keypoints ../IMG_6371-keypoints \
+--target_shape 1080 1920 3 \
+--source_shape 1080 1920 3 \
+--source_frames ../IMG_6371-frames \
+--results ../IMG_6371-posenorm_07 \
+--target_spread 20500 117700 \
+--source_spread 1 2700 \
+--calculate_scale_translation \
+--source_median_frac 0.7 \
+--target_median_frac 0.7
+
+# It looks like John was wrong... our source frames are (1080 1920 3) but the
+# target frames seems to by (1024, 512, 3)
+
+python3 graph_posenorm.py \
+--target_keypoints /BellyData/subject4/train/train_keypoints  \
+--source_keypoints /BellyData/IMG_6371-keypoints \
+--target_shape 512 1024 3 \
+--source_shape 1080 1920 3 \
+--source_frames /BellyData/IMG_6371-frames \
+--results /BellyData/IMG_6371-posenorm-small \
+--target_spread 20500 117700 \
+--source_spread 1 2700 \
+--calculate_scale_translation
+
+python3 test_fullts.py \
+--name pretrained \
+--dataroot /BellyData/IMG_6371-posenorm-small \
+--checkpoints_dir /BellyData/ \
+--results_dir /BellyData/IMG_6371-gen-small \
+--face_generator \
+--faceGtype global \
+--netG local \
+--ngf 32 \
+--resize_or_crop none \
+--no_instance \
+--how_many 10000 \
+--label_nc 6
+
+ffmpeg -framerate 25 -i frame%06d_synthesized_image.png -vcodec libx264 -crf 20 -pix_fmt yuv420p output.mp4

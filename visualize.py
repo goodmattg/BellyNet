@@ -3,7 +3,7 @@ import numpy as np
 
 # parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter
 from options.visualize_options import VisualizeOptions
-from utils.render import readkeypointsfile, renderpose25
+from data_prep.render import readkeypointsfile, renderpose25
 
 opt = VisualizeOptions().parse(save=False)
 
