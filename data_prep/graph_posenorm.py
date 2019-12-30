@@ -76,6 +76,7 @@ parser.add_argument(
     type=int,
     help="range of frames to use for target video, e.g. 0 10000",
 )
+
 parser.add_argument(
     "--source_spread",
     nargs="+",
@@ -325,6 +326,24 @@ def calculate_translation(t_coord, translation, scale_ratios):
     )
 
     return m_coord - t_coord, scale_interp
+
+
+def find_horizon(ank_ypos_max, ank_ypos_median, ank_ypos_list, mid_frac):
+    """
+    Returns horizon - offset from median to minimum y-position via clustering
+    """
+    dist_max_to_median = ank_ypos_max - ank_ypos_median
+    dist_all_to_median = ank_ypos_median - np.array(ank_ypos_list)
+
+    # Collect indices where
+    #   (1) median is greater than ankle y-pos
+    #   (2) dist. to median less than fraction of dist. from absolute max y-pos to median
+    idx = np.where(
+        (dist_all_to_median > 0) & (dist_all_to_median < mid_frac * dist_max_to_median)
+    )
+    horizon = ank_ypos_median - np.amax(dist_all_to_median[idx])
+
+    return horizon
 
 
 def transform_interp(
@@ -602,33 +621,38 @@ if calculate_scale_and_translation:
     )
 
     # Difference between argmax ankle position (y) and median of max ankle positions
-    t_tiptoefrommid = t_maxtoe - t_median
-    s_tiptoefrommid = s_maxtoe - s_median
+    # t_tiptoefrommid = t_maxtoe - t_median
+    # s_tiptoefrommid = s_maxtoe - s_median
 
-    print(t_median)
-    print(s_median)
+    # print(t_median)
+    # print(s_median)
+
+    ## Now we find the "far" positions through clustering
+
+    t_horizon = find_horizon(t_maxtoe, t_median, t_tiptoes, t_mid_frac)
+    s_horizon = find_horizon(s_maxtoe, s_median, s_tiptoes, s_mid_frac)
 
     #    median - tiptoes
-    t_distancetomid = -1 * np.array(t_tiptoes)
-    t_distancetomid = t_distancetomid + t_median
+    # t_distancetomid = -1 * np.array(t_tiptoes)
+    # t_distancetomid = t_distancetomid + t_median
 
-    t_inds = np.where(
-        (t_distancetomid > 0) & (t_distancetomid < t_mid_frac * t_tiptoefrommid)
-    )  # want the biggest number > 0 but also < tiptoefrommid
-    t_abovemedian = t_distancetomid[t_inds]
-    t_biggestind = np.argmax(t_abovemedian)
-    t_horizon = (t_abovemedian[t_biggestind] - t_median) * -1
-    print(t_horizon)
+    # t_inds = np.where(
+    #     (t_distancetomid > 0) & (t_distancetomid < t_mid_frac * t_tiptoefrommid)
+    # )  # want the biggest number > 0 but also < tiptoefrommid
+    # t_abovemedian = t_distancetomid[t_inds]
+    # t_biggestind = np.argmax(t_abovemedian)
+    # t_horizon = (t_abovemedian[t_biggestind] - t_median) * -1
+    # print(t_horizon)
 
-    s_distancetomid = -1 * np.array(s_tiptoes)  # median - tiptoes
-    s_distancetomid = s_distancetomid + s_median
-    s_inds = np.where(
-        (s_distancetomid > 0) & (s_distancetomid < s_mid_frac * s_tiptoefrommid)
-    )  # want the biggest number > 0 but also < tiptoefrommid
-    s_abovemedian = s_distancetomid[s_inds]
-    s_biggestind = np.argmax(s_abovemedian)
-    s_horizon = (s_abovemedian[s_biggestind] - s_median) * -1
-    print(s_horizon)
+    # s_distancetomid = -1 * np.array(s_tiptoes)  # median - tiptoes
+    # s_distancetomid = s_distancetomid + s_median
+    # s_inds = np.where(
+    #     (s_distancetomid > 0) & (s_distancetomid < s_mid_frac * s_tiptoefrommid)
+    # )  # want the biggest number > 0 but also < tiptoefrommid
+    # s_abovemedian = s_distancetomid[s_inds]
+    # s_biggestind = np.argmax(s_abovemedian)
+    # s_horizon = (s_abovemedian[s_biggestind] - s_median) * -1
+    # print(s_horizon)
 
     scale = 1
     translation = [(t_maxtoe, t_horizon), (s_maxtoe, s_horizon)]
@@ -641,6 +665,7 @@ if calculate_scale_and_translation:
         new_t_maxtoe = t_middle + s_half
         translation = [(new_t_maxtoe, new_t_horizon), (s_maxtoe, s_horizon)]
 
+    # We get the scale using the computed translation and the mappings from ankle position to height
     scale = get_minmax_scales(t_tiptoe_to_height, s_tiptoe_to_height, translation, 0.05)
 
     """ SAVE FACE TEXTS HERE """
