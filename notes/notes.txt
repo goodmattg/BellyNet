@@ -279,4 +279,22 @@ python3 test_fullts.py \
 --how_many 10000 \
 --label_nc 6
 
+
+# Stitch together generated outputs to create video
 ffmpeg -framerate 25 -i frame%06d_synthesized_image.png -vcodec libx264 -crf 20 -pix_fmt yuv420p output.mp4
+
+
+## Test Posenorm Locally
+
+python3 data_prep/graph_posenorm.py \
+--target_keypoints ../subject4/train/train_keypoints  \
+--source_keypoints ../IMG_6371-keypoints \
+--target_shape 512 1024 3 \
+--source_shape 1080 1920 3 \
+--source_frames ../IMG_6371-frames \
+--results ../IMG_6371-posenorm-small \
+--target_spread 20500 117700 \
+--source_spread 1 2700 \
+--target_median_frac 0.7 \
+--source_median_frac 0.7 \
+--calculate_scale_translation

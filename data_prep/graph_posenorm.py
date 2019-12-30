@@ -116,7 +116,7 @@ parser.add_argument(
 )
 
 
-def get_keypoints_stats(mypath, myshape, spread, startname="frame", stophere=20000):
+def get_keypoints_stats(mypath, myshape, spread, startname="frame", max_frames=20000):
     """
     Returns aggregate statistics for a set of keypoints
 
@@ -202,14 +202,14 @@ def get_keypoints_stats(mypath, myshape, spread, startname="frame", stophere=200
                         tiptoe_to_height[max_tip_toe] = [height]
                     else:
                         tiptoe_to_height[max_tip_toe] += [height]
-        else:
-            print("cannot find file " + os.path.join(mypath, f_yaml))
-        if count % 100 == 0:
-            print(count)
-        if count >= stophere:
-            ok = False
-        if count >= spread[1] - spread[0]:
-            ok = False
+
+                    # print("cannot find file " + os.path.join(mypath, f_yaml))
+                    if count % 100 == 0:
+                        print(count)
+                    if count >= max_frames:
+                        ok = False
+                    if count >= spread[1] - spread[0]:
+                        ok = False
 
     # NOTE: THIS IS ACTUALLY THE AVERAGE MAX ANKLE HEIGHT
     avemintoe = avemintoe / float(count)
@@ -613,52 +613,28 @@ translation = 0
 if calculate_scale_and_translation:
     # maxheight, mintoe, maxtoe, avemintoe, maxmintoe
     _, _, s_maxtoe, _, _, s_median, s_tiptoes, s_tiptoe_to_height = get_keypoints_stats(
-        source_keypoints, shape2, spread_s, startname=startname
+        source_keypoints, shape2, spread_s, startname=startname, max_frames=10000
     )
 
     _, _, t_maxtoe, _, _, t_median, t_tiptoes, t_tiptoe_to_height = get_keypoints_stats(
-        target_keypoints, shape1, spread_t, startname=startname, stophere=5000
+        target_keypoints, shape1, spread_t, startname=startname, max_frames=10000
     )
 
-    # Difference between argmax ankle position (y) and median of max ankle positions
-    # t_tiptoefrommid = t_maxtoe - t_median
-    # s_tiptoefrommid = s_maxtoe - s_median
-
-    # print(t_median)
-    # print(s_median)
-
-    ## Now we find the "far" positions through clustering
-
+    ## Find the far positions through clustering. Far position is spatially above in frame
     t_horizon = find_horizon(t_maxtoe, t_median, t_tiptoes, t_mid_frac)
     s_horizon = find_horizon(s_maxtoe, s_median, s_tiptoes, s_mid_frac)
 
-    #    median - tiptoes
-    # t_distancetomid = -1 * np.array(t_tiptoes)
-    # t_distancetomid = t_distancetomid + t_median
-
-    # t_inds = np.where(
-    #     (t_distancetomid > 0) & (t_distancetomid < t_mid_frac * t_tiptoefrommid)
-    # )  # want the biggest number > 0 but also < tiptoefrommid
-    # t_abovemedian = t_distancetomid[t_inds]
-    # t_biggestind = np.argmax(t_abovemedian)
-    # t_horizon = (t_abovemedian[t_biggestind] - t_median) * -1
-    # print(t_horizon)
-
-    # s_distancetomid = -1 * np.array(s_tiptoes)  # median - tiptoes
-    # s_distancetomid = s_distancetomid + s_median
-    # s_inds = np.where(
-    #     (s_distancetomid > 0) & (s_distancetomid < s_mid_frac * s_tiptoefrommid)
-    # )  # want the biggest number > 0 but also < tiptoefrommid
-    # s_abovemedian = s_distancetomid[s_inds]
-    # s_biggestind = np.argmax(s_abovemedian)
-    # s_horizon = (s_abovemedian[s_biggestind] - s_median) * -1
-    # print(s_horizon)
+    print("Target median: %.3f" % t_median)
+    print("Target horizon: %.3f" % t_horizon)
+    print("Source median: %.3f" % s_median)
+    print("Source horizon: %.3f" % t_horizon)
 
     scale = 1
+    # [[target_close, target_far], [source_close, source_far]]
     translation = [(t_maxtoe, t_horizon), (s_maxtoe, s_horizon)]
 
     if s_maxtoe - s_horizon < t_maxtoe - t_horizon:
-        print(" small range ")
+        print("Source has smaller range than target")
         t_middle = 0.5 * (t_maxtoe + t_horizon)
         s_half = 0.5 * (s_maxtoe - s_horizon)
         new_t_horizon = t_middle - s_half
@@ -668,56 +644,60 @@ if calculate_scale_and_translation:
     # We get the scale using the computed translation and the mappings from ankle position to height
     scale = get_minmax_scales(t_tiptoe_to_height, s_tiptoe_to_height, translation, 0.05)
 
-    """ SAVE FACE TEXTS HERE """
-    myfile = savedir + "/norm_params.txt"
-    F = open(myfile, "w")
-    F.truncate(0)
-    F.write(str(scale[0]) + " " + str(scale[1]) + "\n")
-    F.write(
-        str(translation[0][0])
-        + " "
-        + str(translation[0][1])
-        + " "
-        + str(translation[1][0])
-        + " "
-        + str(translation[1][1])
-    )
-    F.close()
-else:
-    norm_file = savedir + "/norm_params.txt"
-    if os.path.exists(norm_file):
-        with open(norm_file, "rb") as f:
-            try:
-                line = f.readline()
-                print(line)
-                params = line.split(" ")
-                scale = (float(params[0]), float(params[1]))
-                line = f.readline()
-                print(line)
-                params = line.split(" ")
-                print(params)
-                translation = [
-                    (float(params[0]), float(params[1])),
-                    (float(params[2]), float(params[3])),
-                ]
-            except:
-                print(("unable to extract scale, translation from " + norm_file))
-                sys.exit(0)
+    print("Scale: {}".format(scale))
+    print("Translation: {}".format(translation))
 
-print("transformation:")
-print(scale, translation)
 
-transform_interp(
-    source_keypoints,
-    scale,
-    translation,
-    shape1,
-    savedir,
-    spread_t,
-    spread_s,
-    "",
-    framesdir,
-    numkeypoints,
-    startname,
-)
+#     """ SAVE FACE TEXTS HERE """
+#     myfile = savedir + "/norm_params.txt"
+#     F = open(myfile, "w")
+#     F.truncate(0)
+#     F.write(str(scale[0]) + " " + str(scale[1]) + "\n")
+#     F.write(
+#         str(translation[0][0])
+#         + " "
+#         + str(translation[0][1])
+#         + " "
+#         + str(translation[1][0])
+#         + " "
+#         + str(translation[1][1])
+#     )
+#     F.close()
+# else:
+#     norm_file = savedir + "/norm_params.txt"
+#     if os.path.exists(norm_file):
+#         with open(norm_file, "rb") as f:
+#             try:
+#                 line = f.readline()
+#                 print(line)
+#                 params = line.split(" ")
+#                 scale = (float(params[0]), float(params[1]))
+#                 line = f.readline()
+#                 print(line)
+#                 params = line.split(" ")
+#                 print(params)
+#                 translation = [
+#                     (float(params[0]), float(params[1])),
+#                     (float(params[2]), float(params[3])),
+#                 ]
+#             except:
+#                 print(("unable to extract scale, translation from " + norm_file))
+#                 sys.exit(0)
+
+# print("transformation:")
+# print(scale, translation)
+
+# transform_interp(
+#     source_keypoints,
+#     scale,
+#     translation,
+#     shape1,
+#     savedir,
+#     spread_t,
+#     spread_s,
+#     "",
+#     framesdir,
+#     numkeypoints,
+#     startname,
+# )
 
